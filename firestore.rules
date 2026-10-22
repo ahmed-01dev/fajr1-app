@@ -1,0 +1,129 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // ── users ─────────────────────────────────────────────────────────────
+    // Clients can create their own doc only with initial (zero) gamification
+    // values and can later edit ONLY non-privileged fields. XP, rank, streak
+    // and achievements are SERVER-ONLY (written by Cloud Functions).
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+
+      allow create: if isOwner(uid)
+        && request.resource.data.xp == 0
+        && request.resource.data.streak == 0
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() >= 2
+        && request.resource.data.displayName.size() <= 40;
+
+      allow update: if isOwner(uid)
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly(['displayName', 'city', 'calcMethod', 'phoneConsent',
+                    'phone', 'notificationPref', 'lastSeen', 'favoriteAdhkar']);
+
+      allow delete: if false; // account deletion only via callable function
+    }
+
+    // ── user_settings ─────────────────────────────────────────────────────
+    match /user_settings/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // ── notification_tokens ───────────────────────────────────────────────
+    // Owner-only. Never publicly readable (§5).
+    match /notification_tokens/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // ── teams ─────────────────────────────────────────────────────────────
+    // inviteCode is validated and rotated server-side only.
+    match /teams/{teamId} {
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.memberCount == 1
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2
+        && request.resource.data.name.size() <= 40;
+
+      allow update: if signedIn()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly(['name', 'goal', 'inviteCode', 'memberCount']);
+
+      allow delete: if signedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    // ── team_members ──────────────────────────────────────────────────────
+    // Join/leave/promote ONLY through callable functions — clients never
+    // write membership directly (prevents forged membership, §5).
+    match /team_members/{teamId}/members/{uid} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // ── companion_requests ────────────────────────────────────────────────
+    // Readable and modifiable ONLY by the two participants. Self-requests
+    // are rejected at create time; status changes only by the recipient.
+    match /companion_requests/{requestId} {
+      allow read: if signedIn()
+        && request.auth.uid in [resource.data.fromUid, resource.data.toUid];
+
+      allow create: if signedIn()
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.fromUid != request.resource.data.toUid
+        && request.resource.data.status == 'pending';
+
+      allow update: if signedIn()
+        && request.auth.uid == resource.data.toUid
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly(['status']);
+
+      allow delete: if signedIn()
+        && request.auth.uid in [resource.data.fromUid, resource.data.toUid];
+    }
+
+    // ── wakeup_events ─────────────────────────────────────────────────────
+    // Create-only self-report. XP is awarded by Cloud Functions, never here.
+    match /wakeup_events/{eventId} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.selfReported == true;
+
+      allow update, delete: if false;
+    }
+
+    // ── reports ───────────────────────────────────────────────────────────
+    // Create-only; never readable by arbitrary users (§5).
+    match /reports/{reportId} {
+      allow create: if signedIn()
+        && request.resource.data.reporterUid == request.auth.uid;
+      allow read, update, delete: if false;
+    }
+
+    // ── blocked_users ─────────────────────────────────────────────────────
+    match /blocked_users/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // ── audit_events ──────────────────────────────────────────────────────
+    // Server-written only.
+    match /audit_events/{eventId} {
+      allow read, write: if false;
+    }
+  }
+}
