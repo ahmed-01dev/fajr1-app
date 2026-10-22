@@ -1,37 +1,34 @@
 plugins {
-    id("com.android.application")
-    id("kotlin-android")
-    id("dev.flutter.flutter-gradle-plugin")
-    // google-services is applied ONLY when google-services.json exists —
-    // otherwise the app builds in clearly labeled demo mode.
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
 }
 
 android {
-    namespace = "com.fajr.app"
-    compileSdk = 36
+    namespace "com.fajr.app"
+    compileSdk 36
 
     defaultConfig {
-        applicationId = "com.fajr.app"
-        minSdk = 24 // REQUIRED by firebase_auth/cloud_firestore 7.0.0
-        targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        applicationId "com.fajr.app"
+        // REQUIRED by firebase_auth/cloud_firestore 7.0.0 (verified changelog)
+        minSdk 24
+        targetSdk 36
+        versionCode 1
+        versionName "0.1.0"
     }
 
     buildTypes {
         release {
             // Unsigned release build by default. Signing secrets stay in
-            // GitHub Secrets — never committed to the repository (§13).
-            isMinifyEnabled = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt")
-            )
+            // GitHub Secrets — never committed to the repository.
+            isMinifyEnabled true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt")
         }
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     kotlinOptions {
@@ -40,17 +37,18 @@ android {
 }
 
 flutter {
-    source = "../.."
+    source "../.."
 }
 
 dependencies {
-    implementation(platform("com.google.firebase:firebase-bom:35.0.0"))
+    implementation platform("com.google.firebase:firebase-bom:35.0.0")
 }
 
-// Apply google-services conditionally: only when the config file is present.
+// Apply google-services ONLY when the config file is present, so the app
+// builds in clearly labeled demo mode without Firebase.
 def googleServicesFile = file("google-services.json")
 if (googleServicesFile.exists()) {
-    apply plugin: 'com.google.gms.google-services'
+    apply plugin: "com.google.gms.google-services"
 } else {
-    logger.lifecycle("FAJR: google-services.json not found — building in DEMO mode (no Firebase).")
+    logger.lifecycle("FAJR: google-services.json not found - building in DEMO mode (no Firebase).")
 }
