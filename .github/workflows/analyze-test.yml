@@ -1,0 +1,39 @@
+name: analyze-test
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze-test:
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+- name: Set up Flutter (pinned stable)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.7
+
+- name: Flutter version
+        run: flutter --version
+
+- name: Pub get
+        run: flutter pub get
+
+- name: Format check (lib and test only)
+        run: dart format --output=none --set-exit-if-changed lib test
+
+- name: Analyze
+        run: flutter analyze
+
+- name: Unit and widget tests
+        run: flutter test
