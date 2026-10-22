@@ -1,31 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../../core/theme/fajr_theme.dart';
-import '../../bootstrap/startup_controller.dart';
 import '../adhkar/adhkar_screen.dart';
-import '../prayer/city_presets.dart';
 import '../prayer/prayer_times_screen.dart';
 
 /// Main navigation hub shown after a successful (or degraded) startup.
 /// Cloud-only features are DISABLED and clearly explained in demo mode —
-/// never fake buttons that pretend to work (§6.11).
+/// never fake buttons that pretend to work.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key, required this.isLocalMode});
 
+  /// True when running without Firebase — cloud features stay disabled
+  /// with a clear explanation, never fake success.
   final bool isLocalMode;
 
   @override
   Widget build(BuildContext context) {
-    final startup = context.watch<StartupController>();
-    final localMode = isLocalMode || startup.isLocalMode;
-
     return Scaffold(
       backgroundColor: FajrTheme.navyDeep,
       appBar: AppBar(
         title: const Text('فَجْر'),
         actions: [
-          if (localMode)
+          if (isLocalMode)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 12),
               child: Chip(
@@ -51,9 +47,7 @@ class HomeScreen extends StatelessWidget {
             subtitle: 'حساب محلي على جهازك — اختر مدينتك',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => PrayerTimesScreen(
-                  onCitySelected: (city) => debugPrint('city: ${city.name}'),
-                ),
+                builder: (_) => const PrayerTimesScreen(onCitySelected: _noOp),
               ),
             ),
           ),
@@ -68,24 +62,24 @@ class HomeScreen extends StatelessWidget {
           _SectionCard(
             icon: Icons.groups,
             title: 'الفرق',
-            subtitle: localMode
+            subtitle: isLocalMode
                 ? 'يتطلب Firebase — غير متاح في الوضع المحلي'
-                : 'انضم لفريق أو أنشئ فريقك الخاص',
-            enabled: !localMode,
+                : 'انضم لفريق أو أنشئ فريقك الخاص (قريبًا)',
+            enabled: false, // teams screen lands in the next stage
             onTap: () {},
           ),
           _SectionCard(
             icon: Icons.person_search,
             title: 'رفيق الفجر',
-            subtitle: localMode
+            subtitle: isLocalMode
                 ? 'يتطلب Firebase — غير متاح في الوضع المحلي'
-                : 'اطلب من صاحبك أن يوقظك لصلاة الفجر',
-            enabled: !localMode,
+                : 'اطلب من صاحبك أن يوقظك لصلاة الفجر (قريبًا)',
+            enabled: false, // companion screen lands in the next stage
             onTap: () {},
           ),
           const SizedBox(height: 24),
           Text(
-            localMode
+            isLocalMode
                 ? 'يعمل التطبيق الآن في الوضع المحلي التجريبي: أوقات الصلاة والأذكار متاحة، '
                     'والميزات الاجتماعية تحتاج ربط Firebase (انظر README).'
                 : 'مرحبًا بك في فَجْر — كل الميزات متاحة.',
@@ -96,48 +90,7 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
-}
 
-class _SectionCard extends StatelessWidget {
-  const _SectionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.enabled = true,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Card(
-        color: enabled ? FajrTheme.navyCard : FajrTheme.navyCard.withOpacity(0.5),
-        child: ListTile(
-          enabled: enabled,
-          leading: Icon(
-            icon,
-            color: enabled ? FajrTheme.gold : Colors.white24,
-            size: 32,
-          ),
-          title: Text(
-            title,
-            style: FajrTheme.headline.copyWith(color: enabled ? null : Colors.white38),
-          ),
-          subtitle: Text(subtitle, style: FajrTheme.label),
-          trailing: Icon(
-            Icons.chevron_left,
-            color: enabled ? FajrTheme.emerald : Colors.white24,
-          ),
-          onTap: enabled ? onTap : null,
-        ),
-      ),
-    );
-  }
+  /// Placeholder callback until the shell consumes the selected city.
+  static void _noOp() {}
 }
